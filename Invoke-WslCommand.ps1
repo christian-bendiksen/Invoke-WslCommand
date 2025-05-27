@@ -1,6 +1,9 @@
 # Invoke-WslCommand.
 # Run stuff from WSL within Powershell.
 # Ex. cat, grep, etc.
+
+# Run stuff from WSL within Powershell.
+# Ex. cat, grep, etc.
 function global:Invoke-WslCommand {
     param(
         [Parameter(Mandatory=$true)]
@@ -10,43 +13,79 @@ function global:Invoke-WslCommand {
         [string[]]$Arguments
     )
 
-    # Convert Windows paths to WSL-compatible paths
+    $rawCommand = $Command + ' ' + ($Arguments -join ' ')
+
+    if ($rawCommand -like '*->*') {
+        # User has written a piped commando '->'
+        $segments = $rawCommand -split '\s*->\s*'
+
+        $convertedSegments = foreach ($segment in $segments) {
+            $parts = $segment -split '\s+'
+            if ($parts.Count -eq 0) { continue }
+
+            $cmd = $parts[0]
+            $args = @()
+            if ($parts.Count -gt 1) {
+                $args = $parts[1..($parts.Count - 1)]
+            }
+
+            $convertedArgs = foreach ($arg in $args) {
+                if ($arg.StartsWith('-')) {
+                    $arg
+                }
+                else {
+                    try {
+                        $resolvedPath = (Resolve-Path -LiteralPath $arg -ErrorAction Stop).Path
+                        if ($resolvedPath -match '^([A-Za-z]):\\') {
+                            $driveLetter = $matches[1].ToLower()
+                            $unixPath = $resolvedPath `
+                                -replace '^[A-Za-z]:\\', "/mnt/$driveLetter/" `
+                                -replace '\\', '/'
+                            "'$unixPath'"
+                        } else {
+                            "'$arg'"
+                        }
+                    } catch {
+                        "'$arg'"
+                    }
+                }
+            }
+
+            "$cmd $($convertedArgs -join ' ')"
+        }
+
+        $bashCommand = $convertedSegments -join ' | '
+        wsl bash -i -c "$bashCommand"
+        return
+    }
+
+    # No piped command
     $convertedArgs = foreach ($arg in $Arguments) {
         if ($arg.StartsWith('-')) {
-            # Pass flags as-is
             $arg
         }
         else {
             try {
-                # Resolve path if possible
                 $resolvedPath = (Resolve-Path -LiteralPath $arg -ErrorAction Stop).Path
-
-                # Check for Windows-style drive letter
                 if ($resolvedPath -match '^([A-Za-z]):\\') {
                     $driveLetter = $matches[1].ToLower()
                     $unixPath = $resolvedPath `
                         -replace '^[A-Za-z]:\\', "/mnt/$driveLetter/" `
                         -replace '\\', '/'
-                    
-                    # Return quoted path to handle spaces and special chars
                     "'$unixPath'"
                 }
                 else {
-                    # Non-standard paths are returned unchanged, quoted
                     "'$arg'"
                 }
             }
             catch {
-                # If resolution fails, pass the original argument quoted
                 "'$arg'"
             }
         }
     }
 
-    # Join arguments safely
     $escapedArgs = $convertedArgs -join ' '
 
-    # Invoke WSL command with converted and escaped arguments
     if ([string]::IsNullOrWhiteSpace($escapedArgs)) {
         wsl bash -i -c "$Command"
     }
@@ -54,3 +93,5 @@ function global:Invoke-WslCommand {
         wsl bash -i -c "$Command $escapedArgs"
     }
 }
+
+
