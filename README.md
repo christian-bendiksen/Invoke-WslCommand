@@ -49,7 +49,6 @@ function global:ls {
 You can pipe your commands with ->
 ```bash
 cat README.md -> grep "hello world"
----
 ```
 
 ## 📦 Benefits
