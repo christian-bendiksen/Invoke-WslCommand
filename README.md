@@ -18,7 +18,7 @@ Run WSL commands from PowerShell — like `cat`, `grep`, `ls`, and more.
 > $PROFILE
 > ```
 
-## 🧩 Example Usage
+## Example Usage
 
 To define wrapper functions for common Linux commands, add something like this to your PowerShell profile:
 
@@ -32,7 +32,7 @@ function global:grep {
 }
 ```
 
-### 🧼 Replacing Aliases
+### Replacing Aliases
 
 If you're replacing existing PowerShell aliases (like `ls`), make sure to remove them first:
 
@@ -44,7 +44,13 @@ function global:ls {
 }
 ```
 
+### Piping commands
+
+You can pipe your commands with ->
+```bash
+cat README.md -> grep "hello world"
 ---
+```
 
 ## 📦 Benefits
 
