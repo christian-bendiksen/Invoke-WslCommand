@@ -1,9 +1,19 @@
-# Invoke-WslCommand.
-# Run stuff from WSL within Powershell.
-# Ex. cat, grep, etc.
+# Get-WslShell: Detects and caches the user's preferred WSL shell
+function Get-WslShell {
+    if ($env:WSL_PREFERRED_SHELL) {
+        return $env:WSL_PREFERRED_SHELL
+    }
 
-# Run stuff from WSL within Powershell.
-# Ex. cat, grep, etc.
+    $shell = (wsl -e sh -c 'echo $SHELL' 2>$null).Trim()
+    if ([string]::IsNullOrWhiteSpace($shell)) {
+        $shell = "/bin/bash"
+    }
+
+    $env:WSL_PREFERRED_SHELL = $shell
+    return $shell
+}
+
+# Invoke-WslCommand: Run wsl commands from powershell
 function global:Invoke-WslCommand {
     param(
         [Parameter(Mandatory=$true)]
@@ -12,6 +22,9 @@ function global:Invoke-WslCommand {
         [Parameter(ValueFromRemainingArguments=$true)]
         [string[]]$Arguments
     )
+
+    # Set the user Wsl shell
+    $userShell = Get-WslShell
 
     $rawCommand = $Command + ' ' + ($Arguments -join ' ')
 
@@ -55,7 +68,7 @@ function global:Invoke-WslCommand {
         }
 
         $bashCommand = $convertedSegments -join ' | '
-        wsl bash -i -c "$bashCommand"
+        wsl -e $userShell -i -c "$bashCommand"
         return
     }
 
@@ -87,11 +100,9 @@ function global:Invoke-WslCommand {
     $escapedArgs = $convertedArgs -join ' '
 
     if ([string]::IsNullOrWhiteSpace($escapedArgs)) {
-        wsl bash -i -c "$Command"
+        wsl -e $userShell -i -c "$Command"
     }
     else {
-        wsl bash -i -c "$Command $escapedArgs"
+        wsl -e $userShell -i -c "$Command $escapedArgs"
     }
 }
-
-
